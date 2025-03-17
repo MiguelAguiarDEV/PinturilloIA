@@ -30,7 +30,6 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Procesa las coordenadas del trazo (opcional)
                 x = message.get("x")
                 y = message.get("y")
-                print("Coordenadas recibidas:", x, y)
                 await websocket.send_text("Coordenadas recibidas.")
             elif message.get("type") == "canvasImage":
                 # Procesa la imagen del canvas
