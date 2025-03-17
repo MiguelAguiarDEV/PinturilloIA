@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Pinturillo IA</title>
+  <style>
+    body {
+      text-align: center;
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    /* Contenedor principal del juego */
+    #gameContainer {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      max-width: 700px;
+      margin: auto;
+    }
+    #infoPanel {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    #infoPanel div {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    #drawingCanvas {
+      border: 2px solid #333;
+      background: white;
+      cursor: crosshair;
+    }
+    /* Panel de herramientas */
+    #toolsPanel {
+      margin: 10px 0;
+    }
+    #toolsPanel button {
+      padding: 6px 12px;
+      font-size: 14px;
+      margin: 0 5px;
+      cursor: pointer;
+    }
+    /* Chat: se mostrará solo la respuesta final de la IA */
+    #chatBox {
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      background: #fff;
+      padding: 10px;
+      max-width: 700px;
+      height: 200px;
+      overflow-y: auto;
+      margin: 20px auto 0;
+      text-align: left;
+      font-size: 16px;
+    }
+    #chatBox p {
+      margin: 5px 0;
+    }
+    #sendNowButton, #newGameButton {
+      padding: 6px 12px;
+      font-size: 14px;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+    /* Botón de siguiente ronda, visible al terminar la ronda */
+    #newGameButton {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Pinturillo IA</h1>
+  <div id="gameContainer">
+    <div id="infoPanel">
+      <div id="targetWord">Palabra: <span id="word"></span></div>
+      <div id="timer">Tiempo: <span id="timeLeft">01:30</span></div>
+      <button id="newGameButton">Siguiente ronda</button>
+    </div>
+    <canvas id="drawingCanvas" width="500" height="500"></canvas>
+    <!-- Panel de herramientas -->
+    <div id="toolsPanel">
+      <button id="pencilButton">Lápiz</button>
+      <button id="eraserButton">Goma</button>
+      <button id="clearButton">Limpiar Canvas</button>
+    </div>
+    <div>
+      <button id="sendNowButton">Enviar imagen ahora</button>
+    </div>
+  </div>
+  <div id="chatBox">
+    <p><em>Chat de la IA:</em></p>
+  </div>
+
+  <script>
+    // Array de palabras sencillas para dibujar
+    const wordList = ["casa", "flor", "árbol", "sol", "luna", "perro", "gato", "auto", "barco", "montaña", "río", "mar", "nube", "estrella", "lluvia", "nieve", "viento", "hoja", "fruta"];
+    let currentWord = "";
+    // Array global para almacenar las palabras ya adivinadas (en minúsculas)
+    let guessedWords = [];
+    let roundActive = true;
+    let timeLeft = 90;
+    let timerInterval;
+    let autoSendInterval;
+
+    // Modo de dibujo: "pencil" o "eraser"
+    let drawMode = "pencil";
+    const defaultLineWidth = 2;
+    const eraserLineWidth = 20;
+
+    function chooseRandomWord() {
+      const availableWords = wordList.filter(word => !guessedWords.includes(word.toLowerCase()));
+      if (availableWords.length === 0) {
+        alert("¡Se han agotado las palabras!");
+        currentWord = "";
+      } else {
+        const idx = Math.floor(Math.random() * availableWords.length);
+        currentWord = availableWords[idx];
+      }
+      document.getElementById("word").innerText = currentWord;
+    }
+    chooseRandomWord();
+
+    function startTimer() {
+      clearInterval(timerInterval);
+      timeLeft = 90;
+      updateTimerDisplay();
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        updateTimerDisplay();
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          sendCanvasImage();
+          appendChatMessage("Tiempo agotado. Fin de la ronda.");
+          roundActive = false;
+          clearInterval(autoSendInterval);
+          document.getElementById("newGameButton").style.display = "block";
+        }
+      }, 1000);
+    }
+    function updateTimerDisplay() {
+      const minutes = String(Math.floor(timeLeft / 60)).padStart(2, "0");
+      const seconds = String(timeLeft % 60).padStart(2, "0");
+      document.getElementById("timeLeft").innerText = `${minutes}:${seconds}`;
+    }
+    startTimer();
+
+    // Conexión del WebSocket con reconexión automática
+    let ws;
+    function connectWebSocket() {
+      ws = new WebSocket("ws://127.0.0.1:8000/ws");
+      ws.onopen = () => { console.log("Conectado al WebSocket"); };
+      ws.onmessage = (event) => {
+        console.log("Mensaje del servidor:", event.data);
+        const regex = /IA dice:\s*([^\s<]+)/i;
+        const match = regex.exec(event.data);
+        if (match && match[1] && roundActive) {
+          const finalAnswer = match[1].trim();
+          appendChatMessage(finalAnswer);
+          if (finalAnswer.toLowerCase() === currentWord.toLowerCase()) {
+            guessedWords.push(currentWord.toLowerCase());
+            // Limpiar el chat al acertar
+            document.getElementById("chatBox").innerHTML = "<p><em>Chat de la IA:</em></p>";
+            appendChatMessage("¡Correcto! La palabra era " + currentWord + ". Fin de la ronda.");
+            roundActive = false;
+            clearInterval(timerInterval);
+            clearInterval(autoSendInterval);
+            document.getElementById("newGameButton").style.display = "block";
+          }
+        } else {
+          console.log("No se encontró respuesta final en el mensaje.");
+        }
+      };
+      ws.onclose = (event) => {
+        console.log("WebSocket cerrado. Reintentando en 3 segundos...", event);
+        setTimeout(connectWebSocket, 3000);
+      };
+      ws.onerror = (error) => { console.log("Error en WebSocket:", error); };
+    }
+    connectWebSocket();
+
+    function sendMessage(payload) {
+      payload.guessed = guessedWords;
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(payload));
+      } else {
+        console.log("WebSocket no está abierto. Estado:", ws.readyState);
+      }
+    }
+
+    // Canvas y dibujo
+    const canvas = document.getElementById("drawingCanvas");
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = defaultLineWidth;
+
+    let drawing = false;
+    let lastSentTime = 0;
+    const throttleDelay = 50;
+
+    canvas.addEventListener("mousedown", (e) => {
+      drawing = true;
+      ctx.beginPath();
+      ctx.moveTo(e.offsetX, e.offsetY);
+    });
+    canvas.addEventListener("mouseup", () => { drawing = false; });
+    canvas.addEventListener("mousemove", (e) => {
+      if (!drawing) return;
+      ctx.lineTo(e.offsetX, e.offsetY);
+      ctx.stroke();
+      const now = Date.now();
+      if (now - lastSentTime > throttleDelay) {
+        const data = { type: "draw", x: e.offsetX, y: e.offsetY };
+        sendMessage(data);
+        lastSentTime = now;
+      }
+    });
+
+    // Botones de herramientas
+    document.getElementById("pencilButton").addEventListener("click", () => {
+      drawMode = "pencil";
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = defaultLineWidth;
+    });
+    document.getElementById("eraserButton").addEventListener("click", () => {
+      drawMode = "eraser";
+      ctx.strokeStyle = "white";
+      ctx.lineWidth = eraserLineWidth;
+    });
+    document.getElementById("clearButton").addEventListener("click", () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    });
+
+    // Función para capturar y enviar la imagen del canvas
+    function sendCanvasImage() {
+      const imageData = canvas.toDataURL('image/png');
+      const payload = { type: "canvasImage", data: imageData, word: currentWord };
+      sendMessage(payload);
+    }
+    document.getElementById("sendNowButton").addEventListener("click", () => { sendCanvasImage(); });
+    document.getElementById("newGameButton").addEventListener("click", () => { resetGame(); });
+
+    function resetGame() {
+      clearInterval(timerInterval);
+      clearInterval(autoSendInterval);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      document.getElementById("chatBox").innerHTML = "<p><em>Chat de la IA:</em></p>";
+      document.getElementById("newGameButton").style.display = "none";
+      chooseRandomWord();
+      startTimer();
+      roundActive = true;
+      autoSendInterval = setInterval(() => {
+        if (roundActive && timeLeft > 0) { sendCanvasImage(); }
+      }, 10000);
+    }
+
+    function appendChatMessage(message) {
+      const chatBox = document.getElementById("chatBox");
+      const p = document.createElement("p");
+      p.innerText = message;
+      chatBox.appendChild(p);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    autoSendInterval = setInterval(() => {
+      if (roundActive && timeLeft > 0) { sendCanvasImage(); }
+    }, 10000);
+  </script>
+</body>
+</html>
