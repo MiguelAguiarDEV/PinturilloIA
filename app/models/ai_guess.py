@@ -46,6 +46,7 @@ def generate_description_from_pil(image, guessed_words=[], model_name="gemini-1.
     if guessed_words:
         filter_text = "No uses las siguientes palabras ya que las haz puesto anterior mente y no son la palabra esperada: " + ", ".join(guessed_words) + ". "
         prompt_list.append(filter_text)
+        print(filter_text)
     prompt_list.extend([
         "No repitas las palabras: " + ", ".join(guessed_words) + ".",
         "No uses mayúsculas, acentos, signos de puntuación ni caracteres especiales exeptuando la ñ .",

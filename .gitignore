@@ -1,4 +1,8 @@
 #Ignora la carpeta env y el archivo .vscode
-env/
+.env
 .vscode/
 app/models/__pycache__
+.venv/
+venv/
+__pycache__/
+*.pyc

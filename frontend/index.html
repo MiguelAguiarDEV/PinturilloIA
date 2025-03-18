@@ -86,6 +86,7 @@
     #newGameButton {
       display: none;
     }
+
   </style>
 </head>
 <body>
@@ -119,6 +120,10 @@
   <div id="chatBox">
     <p><em>Chat de la IA:</em></p>
   </div>
+  <button id="modalButton"">Abrir modal</button>
+
+
+  </button>
 
   <script>
     // Array de palabras sencillas para dibujar
@@ -185,6 +190,7 @@
         const match = regex.exec(event.data);
         if (match && match[1] && roundActive) {
           const finalAnswer = match[1].trim();
+          guessedWords.push(finalAnswer.toLowerCase());
           appendChatMessage(finalAnswer);
           if (finalAnswer.toLowerCase() === currentWord.toLowerCase()) {
             guessedWords.push(currentWord.toLowerCase());
@@ -196,7 +202,6 @@
             document.getElementById("newGameButton").style.display = "block";
           }
         } else {
-          console.log("No se encontró respuesta final en el mensaje.");
         }
       };
       ws.onclose = (event) => {
@@ -234,6 +239,9 @@
       ctx.beginPath();
       ctx.moveTo(e.offsetX, e.offsetY);
     });
+
+    
+
     canvas.addEventListener("mouseup", () => { drawing = false; });
     canvas.addEventListener("mousemove", (e) => {
       if (!drawing) return;
@@ -279,12 +287,12 @@
     // Función para capturar y enviar la imagen del canvas
     function sendCanvasImage() {
       const imageData = canvas.toDataURL('image/png');
-      const payload = { type: "canvasImage", data: imageData, word: currentWord };
+      const payload = { type: "canvasImage", data: imageData, word: currentWord, guessed: guessedWords };
       sendMessage(payload);
     }
     document.getElementById("sendNowButton").addEventListener("click", () => { sendCanvasImage(); });
     document.getElementById("newGameButton").addEventListener("click", () => { resetGame(); });
-
+    
     function resetGame() {
       clearInterval(timerInterval);
       clearInterval(autoSendInterval);
@@ -293,6 +301,7 @@
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       document.getElementById("chatBox").innerHTML = "<p><em>Chat de la IA:</em></p>";
       document.getElementById("newGameButton").style.display = "none";
+      guessedWords = [];
       chooseRandomWord();
       startTimer();
       roundActive = true;
@@ -312,6 +321,8 @@
     autoSendInterval = setInterval(() => {
       if (roundActive && timeLeft > 0) { sendCanvasImage(); }
     }, 10000);
+
+
   </script>
 </body>
 </html>

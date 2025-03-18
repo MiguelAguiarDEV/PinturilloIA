@@ -34,9 +34,10 @@ async def websocket_endpoint(websocket: WebSocket):
             elif message.get("type") == "canvasImage":
                 # Procesa la imagen del canvas
                 image_data = message.get("data")
+                guessed_words = message.get("guessed")
                 header, encoded = image_data.split(",", 1)
                 image_bytes = base64.b64decode(encoded)
-                
+                print(f"Guessed words: {guessed_words}")
                 # Preprocesa la imagen para convertirla en blanco y negro simplificado
                 preprocessed_image = preprocess_image_from_bytes(image_bytes)
                 if preprocessed_image is None:
@@ -44,7 +45,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     continue
                 
                 # Genera la descripción (o adivinanza) usando la API de Google Generative AI
-                guess = generate_description_from_pil(preprocessed_image)
+                guess = generate_description_from_pil(preprocessed_image,guessed_words)
                 await websocket.send_text(f"IA dice: {guess}")
             else:
                 await websocket.send_text("Tipo de mensaje desconocido.")
