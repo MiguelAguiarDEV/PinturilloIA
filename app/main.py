@@ -5,11 +5,15 @@ from fastapi import FastAPI, WebSocket
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
+import google.generativeai as genai
+from dotenv import load_dotenv
 
 # Importamos las funciones de nuestro módulo de IA
 from models.ai_guess import preprocess_image_from_bytes, generate_description_from_pil
 
 app = FastAPI()
+
+load_dotenv()
 
 # Montamos los archivos estáticos en "/static"
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
@@ -24,14 +28,11 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     while True:
         data = await websocket.receive_text()
+        print(f"Mensaje recibido: {data}")
+
         try:
             message = json.loads(data)
-            if message.get("type") == "draw":
-                # Procesa las coordenadas del trazo (opcional)
-                x = message.get("x")
-                y = message.get("y")
-                await websocket.send_text("Coordenadas recibidas.")
-            elif message.get("type") == "canvasImage":
+            if message.get("type") == "canvasImage":
                 # Procesa la imagen del canvas
                 image_data = message.get("data")
                 guessed_words = message.get("guessed")
@@ -52,5 +53,15 @@ async def websocket_endpoint(websocket: WebSocket):
         except json.JSONDecodeError:
             await websocket.send_text("Error al decodificar el mensaje.")
 
+
+def get_random_word():
+    genai.configure(api_key=os.environ.get("GOOGLE_API_KEY"))
+    genai.GenerativeModel('gemini-1.5-flash')
+
+    return
+
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)
+
+
+

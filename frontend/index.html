@@ -248,11 +248,6 @@
       ctx.lineTo(e.offsetX, e.offsetY);
       ctx.stroke();
       const now = Date.now();
-      if (now - lastSentTime > throttleDelay) {
-        const data = { type: "draw", x: e.offsetX, y: e.offsetY };
-        sendMessage(data);
-        lastSentTime = now;
-      }
     });
 
     // Botones de herramientas
@@ -289,6 +284,7 @@
       const imageData = canvas.toDataURL('image/png');
       const payload = { type: "canvasImage", data: imageData, word: currentWord, guessed: guessedWords };
       sendMessage(payload);
+      console.log("Enviando imagen automáticamente...");
     }
     document.getElementById("sendNowButton").addEventListener("click", () => { sendCanvasImage(); });
     document.getElementById("newGameButton").addEventListener("click", () => { resetGame(); });
@@ -307,7 +303,8 @@
       roundActive = true;
       autoSendInterval = setInterval(() => {
         if (roundActive && timeLeft > 0) { sendCanvasImage(); }
-      }, 10000);
+        
+      }, 100);
     }
 
     function appendChatMessage(message) {
