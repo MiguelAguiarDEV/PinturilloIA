@@ -49,7 +49,7 @@ def generate_description_from_pil(image, guessed_words=[], model_name="gemini-1.
         print(filter_text)
     prompt_list.extend([
         "No repitas las palabras: " + ", ".join(guessed_words) + ".",
-        "No uses mayúsculas, acentos, signos de puntuación ni caracteres especiales exeptuando la ñ .",
+        "No uses mayúsculas, signos de puntuación ni caracteres especiales exeptuando la ñ .",
         "Eres un modelo de inteligencia artificial especializado en jugar Pictionary. Se te mostrará una imagen y tu tarea es adivinar lo que representa.",
         "Analiza la imagen y piensa que podria ser de las palabras que tienes a continuacion, tu respuesta debe de ser una sola palabra, sin explicacion ni nada mas solo una palabra",
         "Asegúrate de que el formato de la respuesta final sea exacto, No incluyas ningún otro texto para la respuesta final fuera de la palabra que es la respuesta.",
